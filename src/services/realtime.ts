@@ -9,9 +9,10 @@ class RealtimeService {
   private notificationHandler?: NotificationHandler;
 
   connect(token: string) {
+    const isVercel = !!import.meta.env.VITE_API_URL;
     this.socket = io(import.meta.env.VITE_API_URL || undefined, {
       auth: { token },
-      transports: ["websocket", "polling"],
+      transports: isVercel ? ["polling"] : ["websocket", "polling"],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,

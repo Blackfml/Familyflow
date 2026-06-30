@@ -3,7 +3,14 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm ci",
+  "functions": {
+    "api/index.ts": {
+      "memory": 512,
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "env": {
@@ -12,7 +19,6 @@
     "VITE_FIREBASE_PROJECT_ID": "compact-petal-zdckx",
     "VITE_FIREBASE_STORAGE_BUCKET": "compact-petal-zdckx.firebasestorage.app",
     "VITE_FIREBASE_MESSAGING_SENDER_ID": "347308256598",
-    "VITE_FIREBASE_APP_ID": "1:347308256598:web:e38dff58d78a38c4defaf7",
-    "VITE_API_URL": "https://familyflow-production.up.railway.app"
+    "VITE_FIREBASE_APP_ID": "1:347308256598:web:e38dff58d78a38c4defaf7"
   }
 }
