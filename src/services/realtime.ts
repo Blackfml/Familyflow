@@ -9,7 +9,7 @@ class RealtimeService {
   private notificationHandler?: NotificationHandler;
 
   connect(token: string) {
-    this.socket = io({
+    this.socket = io(import.meta.env.VITE_API_URL || undefined, {
       auth: { token },
       transports: ["websocket", "polling"],
       reconnection: true,

@@ -19,7 +19,15 @@ import { setupAIEndpoints } from "./server/ai";
 import { setupRealtimeServer } from "./server/services/realtime.service";
 
 const app = express();
-app.use(cors({ origin: env.APP_URL, credentials: true }));
+const allowedOrigins = [env.APP_URL, "https://familyflow-production.up.railway.app"].filter(Boolean);
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.some(o => origin.startsWith(o))) return cb(null, true);
+    if (origin.includes("vercel.app") || origin.includes("railway.app")) return cb(null, true);
+    cb(null, true);
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use(rateLimiter(200, 60000));
