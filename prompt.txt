@@ -1,0 +1,521 @@
+# PROMPT PARA LOVABLE — MELHORIAS NO FAMILYFLOW
+
+---
+
+## 1. CONTEXTO DO PROJETO
+
+### O que é o FamilyFlow
+Assistente Inteligente Familiar que reduz a carga mental das famílias através de IA, organização compartilhada e planejamento inteligente. Não é um app de tarefas genérico — é um centro de comando familiar com IA proativa.
+
+### Stack Tecnológica
+- **Frontend:** React 19 + TypeScript + Vite + Tailwind v4
+- **Backend:** Express + TypeScript (serverless no Vercel)
+- **Estado:** Zustand (stores por domínio)
+- **Roteamento:** React Router v7 (lazy loading)
+- **Banco:** Firestore (collections normalizadas)
+- **IA:** Google Gemini API (@google/genai)
+- **Tempo Real:** Socket.IO (polling-only em produção/Vercel)
+- **Testes:** Vitest (121 testes passando)
+- **Ícones:** Lucide React
+- **Animações:** Motion (motion)
+
+### Deploy
+- **Frontend + API:** Vercel (serverless function em `api/index.ts`)
+- **URL:** https://familyflow-lake.vercel.app
+- **Repositório:** https://github.com/Blackfml/Familyflow
+
+### Estrutura de Pastas Atual
+```
+/
+├── api/index.ts              # Entrypoint Vercel serverless (export default app)
+├── server.ts                 # Servidor local (dev)
+├── server/
+│   ├── app.ts                # Express app (middleware + routes)
+│   ├── config/               # Firebase, env, AI config
+│   ├── controllers/          # 10 controllers (task, goal, habit, etc.)
+│   ├── services/             # 14 services (state, gamification, AI, etc.)
+│   ├── middleware/           # Auth, errorHandler, rateLimiter, validate
+│   ├── repositories/         # Goal, task repositories
+│   ├── routes/index.ts       # Route aggregator
+│   ├── scripts/              # migrate-firestore.ts
+│   ├── types/                # Error classes
+│   └── utils/                # Logger
+├── src/
+│   ├── main.tsx              # Entry point
+│   ├── routes.tsx            # React Router (10 pages, lazy)
+│   ├── pages/                # 11 pages (Dashboard, Tasks, Goals, Habits, etc.)
+│   ├── components/
+│   │   ├── layout/           # AppShell, BottomNav
+│   │   ├── ui/               # Button, Modal, AppCard, VirtualList, SubTabBar
+│   │   └── entities/         # TaskCard, GoalCard, HabitCard
+│   ├── stores/               # 4 Zustand stores (auth, family, UI, notifications)
+│   ├── hooks/                # useApi, useRealtime, useFlowActions, useAudio
+│   ├── services/             # api.ts, auth.ts, firebase.ts, realtime.ts
+│   ├── utils/                # formatters.ts, i18n.ts
+│   └── types.ts              # All TypeScript interfaces
+├── public/
+│   ├── manifest.json         # PWA manifest (precisa ser ativado)
+│   └── sw.js                 # Service worker (precisa ser implementado)
+├── tests/                    # 7 suites, 121 testes
+├── docs/                     # 46 arquivos de documentação
+└── vercel.json               # Vercel config (includeFiles: server/**)
+```
+
+---
+
+## 2. O QUE JÁ FUNCIONA (NÃO QUEBRAR)
+
+### Sprints 1 a 10 — Completos ✅
+- **Auth:** Firebase Auth (Google + Email) + JWT middleware
+- **Firestore:** Collections normalizadas + service layer + script de migração
+- **Server:** Arquitetura em camadas (controllers, services, middleware)
+- **Frontend:** 11 pages, React Router lazy, Zustand stores, hooks
+- **WebSocket:** Socket.IO server + client com polling fallback no Vercel
+- **Design System:** Button (4 variants), Modal, AppCard, VirtualList, SubTabBar
+- **Entity Components:** TaskCard, GoalCard, HabitCard
+- **AI Tools:** 14 tools (createTask, completeTask, getTasks, etc.)
+- **AI Memory:** Memória curto/longo prazo
+- **AI Modes:** Correria, Foco, Família
+- **Gamificação:** Pontos, níveis, 8 badges, leaderboard
+- **Gamification Service:** Award points, check badges, weekly score
+- **Notificações:** FCM service, notification channels, quiet hours
+- **Testes:** 121 testes (unitários + integração)
+- **CI/CD:** GitHub Actions (quality checks)
+- **Monitoring:** Health check, métricas, response time
+- **VirtualList:** Virtualização de listas com ResizeObserver
+- **Lazy Loading:** React.lazy em todas as páginas
+- **Firestore Service:** CRUD completo para todas as coleções
+- **CORS:** Configurado para Vercel
+- **Rate Limiting:** 200 req/min
+
+### API Endpoints (todos funcionando)
+```
+GET    /api/state
+POST   /api/state
+POST   /api/state/reset
+POST   /api/auth/register
+POST   /api/auth/login
+POST   /api/auth/firebase
+DELETE /api/auth/profile/:name
+GET    /api/tasks
+POST   /api/task
+DELETE /api/task/:id
+POST   /api/goal
+POST   /api/habit/toggle
+DELETE /api/habit/:id
+POST   /api/shopping
+DELETE /api/shopping/:id
+POST   /api/calendar
+POST   /api/notifications/read
+POST   /api/chat/group
+GET    /api/gamification/achievements/:userId
+GET    /api/gamification/badges/:userId
+GET    /api/gamification/leaderboard
+POST   /api/gamification/award
+GET    /api/notification-channels/:userId
+POST   /api/notification-channels/set
+POST   /api/notification-channels/quiet-hours
+POST   /api/gemini/chat
+POST   /api/gemini/chat/stream
+GET    /api/gemini/mode
+POST   /api/gemini/mode
+POST   /api/gemini/reorganize
+POST   /api/gemini/workload
+POST   /api/gemini/weekly
+```
+
+---
+
+## 3. PROBLEMAS CRÍTICOS — PRIORIDADE MÁXIMA
+
+### 3.1 FCM / Firebase Admin Nunca Configurado
+- **Arquivo:** `server/services/fcm.service.ts`
+- **Problema:** `FIREBASE_SERVICE_ACCOUNT` nunca foi adicionado às env vars do Vercel. O serviço existe mas não funciona porque a conta de serviço do Firebase Admin nunca foi gerada.
+- **O que fazer:** 
+  - Gerar service account no Firebase Console (Project Settings > Service Accounts)
+  - Adicionar como secret no Vercel
+  - FCM service já faz graceful degradation (logs warning se não configurado)
+  - Testar push notification real
+
+### 3.2 Firestore Migration Nunca Executada
+- **Arquivo:** `server/scripts/migrate-firestore.ts`
+- **Problema:** O script existe mas nunca rodou. Os dados estão apenas no `family_state.json` local. O `state.service.ts` salva em collections também, mas os dados históricos não foram migrados.
+- **O que fazer:**
+  - Rodar `npx tsx server/scripts/migrate-firestore.ts` no ambiente de produção
+  - Migra de `family_state.json` para collections: `familyflow_tasks`, `familyflow_goals`, etc.
+  - Verificar se `state.service.ts` está lendo das collections corretamente
+  - Adicionar `FIRESTORE_COLLECTION_PREFIX` nas env vars do Vercel
+
+### 3.3 Testes E2E com Playwright Não Existem
+- **Planejado:** Sprint 9.3 (3 dias)
+- **Nunca foi implementado.**
+- **O que fazer:**
+  - Criar `tests/e2e/` com Playwright
+  - Cenários: login, criar tarefa, marcar hábito, chat com IA, ver leaderboard
+  - CI integrado (GitHub Actions)
+
+### 3.4 Deploy Real — CI/CD com Placeholders
+- **Arquivo:** `.github/workflows/ci.yml`
+- **Problema:** Comandos de deploy são `echo "Deploy to..."`. Não há deploy real configurado.
+- **O que fazer:**
+  - Atualizar CI/CD para fazer deploy automático no Vercel via `vercel deploy --prod`
+  - Adicionar staging environment
+  - Smoke tests automáticos pós-deploy
+
+---
+
+## 4. ARQUITETURA — MELHORIAS ESTRUTURAIS
+
+### 4.1 Monorepo (Opcional, alta complexidade)
+Separar em pacotes para melhor organização:
+```
+familyflow/
+├── packages/
+│   ├── server/           # Express API (controllers, services, middleware)
+│   ├── web/              # React SPA (pages, components, stores)
+│   └── shared/           # Types, utils, constants compartilhados
+├── docs/
+└── .github/
+```
+- **Benefício:** Separação clara, builds independentes, tipos compartilhados
+- **Risco:** Precisa refatorar imports, paths, build scripts
+
+### 4.2 Clean Architecture (Média prioridade)
+Implementar camadas corretamente nos controllers/serviços:
+- **Domain:** Entidades, interfaces (já existe em `src/types.ts`)
+- **Application:** Use cases, orquestração
+- **Infrastructure:** Repositories, datasources
+- **Presentation:** Pages, components
+
+**Problema atual:** Controllers chamam `stateService.get()` diretamente. Ideal: Controller → Service → Repository → Firestore.
+
+**Arquivos para refatorar:**
+- `server/controllers/*.ts` — Remover acesso direto ao stateService
+- `server/services/*.ts` — Adicionar lógica de negócio
+- `server/repositories/*.ts` — Já existem goal.repository.ts e task.repository.ts, criar para os demais
+
+### 4.3 Cache Layer
+Adicionar cache para reduzir leituras no Firestore:
+- **Servidor:** Cache em memória com TTL (já existe via stateService, mas não expira)
+- **Cliente:** IndexedDB para cache offline
+- **Estratégia:** Cache-first com revalidação via WebSocket
+
+### 4.4 Multi-tenant (Futuro)
+Preparar arquitetura para múltiplas famílias:
+- Coleções já têm `{familyId}` no path
+- `stateService` precisa aceitar `familyId`
+- Auth middleware precisa extrair `familyId` do JWT
+
+---
+
+## 5. FEATURES PENDENTES
+
+### 5.1 PWA — PROGRESSIVE WEB APP (prioridade máxima)
+**Arquivos existentes:**
+- `public/manifest.json` — Já existe com configuração básica
+- `public/sw.js` — Existe mas é um stub vazio
+
+**O que implementar:**
+- Service worker funcional com cache estratégia "stale-while-revalidate"
+- Cache da página inicial, CSS, JS, assets
+- Tratamento de offline (mostrar dados cacheados)
+- Install prompt (beforeinstallprompt)
+- Atualização automática do SW
+- Notificações push via service worker
+- Tema e background-color no manifest
+- Screenshots para o PWA store
+
+**Requisitos:**
+- O app deve funcionar offline parcialmente (ver tasks cacheadas)
+- Sincronizar quando voltar online (background sync)
+- Funcionar como PWA no Android, iOS, Windows, Mac
+
+### 5.2 Onboarding Flow
+Criar experiência de primeira vez:
+- Tela de boas-vindas com explicação do FamilyFlow
+- Cadastro de perfil (nome, papel na família)
+- Convidar parceiro(a) por link
+- Primeira tarefa guiada
+- Tour interativo pelas abas principais
+- Dica da IA ("Que tal criar sua primeira meta?")
+
+### 5.3 AI Memory com RAG
+Melhorar o sistema de memória da IA:
+- **Arquivo:** `server/services/ai-memory.service.ts`
+- **Atual:** Armazena facts/preferences/context em arquivo JSON
+- **Melhoria:** Embeddings + busca semântica para recall
+- **O que fazer:**
+  - Gerar embeddings das memórias (Gemini embedding API)
+  - Armazenar em collection do Firestore
+  - Busca por similaridade no contexto do prompt
+  - Resumo automático de memórias antigas
+
+### 5.4 Gamificação Avançada
+**Arquivo:** `server/services/gamification.service.ts` + `src/components/BadgesDisplay.tsx`
+- **Badges existentes:** 8 (Madrugador, Raio de Sol, Super Star, Mão na Massa, Faz tudo, Parceiros, Organizador, Mestre dos Hábitos)
+- **Novos badges:** Adicionar mais conquistas com animações
+  - "Equipe dos Sonhos" — 30 tarefas completadas em equipe
+  - "Maratona" — 100 hábitos completados
+  - "Financeiro" — Meta de poupança atingida
+  - "Comunicador" — 50 mensagens no chat familiar
+- **Animações:** Confetti ao desbloquear badge, progresso visual
+- **Níveis:** Expandir para 20 níveis (atualmente 10)
+
+### 5.5 Google Calendar Sync
+Sincronização bidirecional com Google Calendar:
+- Autenticação OAuth2 com Google Calendar API
+- Exportar tarefas como eventos do calendário
+- Importar eventos como blocos de tempo
+- Sincronização periódica (a cada 15 min)
+
+### 5.6 Comandos de Voz
+Speech-to-text integrado:
+- **Web:** Web Speech API (SpeechRecognition)
+- **UI:** Botão de microfone no input de chat da IA
+- **Ações:** "Criar tarefa: levar carro no mecânico amanhã às 14h"
+- **Fallback:** Input de texto normal quando voz não suportada
+
+---
+
+## 6. UI/UX — MELHORIAS VISUAIS
+
+### 6.1 Animações e Micro-interações
+Usar `motion` (já instalado) para:
+- Transição entre páginas (slide, fade)
+- Check de tarefa com animação de riscado
+- Badge desbloqueado com confetti
+- Notificação com slide-in
+- Bottom sheet com spring animation
+- Loading skeletons (substituir spinners)
+- Pull-to-refresh nas listas
+
+### 6.2 Dark/Light Mode
+**Arquivo:** `src/ThemeContext.tsx` — Já existe mas não está completo
+- Toggle funcional com persistência em localStorage
+- Transição suave entre temas
+- 3 modos: Light, Dark, Sistema (prefers-color-scheme)
+- Cores definidas no Design System (`04_ARCHITECTURE.md`)
+
+### 6.3 Acessibilidade (A11y)
+- ARIA labels em todos botões e inputs
+- Navegação por teclado (Tab index, Enter/Space)
+- Focus trap em modais
+- Screen reader announcements
+- Contraste mínimo 4.5:1 em todos os textos
+- Testar com VoiceOver (Mac) e TalkBack (Android)
+
+### 6.4 Melhorias no Layout
+- BottomNav com indicador de badge (notificações não lidas)
+- Header collapsível ao scroll
+- FAB (Floating Action Button) para ação rápida
+- Swipe em cards (concluir, deletar)
+- Lista vazia com ilustração e CTA
+
+---
+
+## 7. PERFORMANCE
+
+### 7.1 Bundle Size
+**Problema:** `index-CAa12CAW.js` tem **668KB** (gzip 193KB)
+**Meta:** < 150KB gzip
+
+**O que fazer:**
+- Analisar bundle com `vite analyze`
+- Identificar pacotes grandes (firebase, socket.io-client, motion)
+- Lazy loading de firebase (só importar quando usar auth)
+- Dynamic import de componentes pesados (NotificationCenterView, HomeDashboard)
+- Remover dependências não utilizadas
+
+### 7.2 Core Web Vitals
+**Metas:**
+- LCP < 1.5s (atual ~3s estimado)
+- FCP < 1s
+- TTI < 2s
+- CLS < 0.1
+- Lighthouse > 90 (atual ~70 estimado)
+
+**O que fazer:**
+- Otimizar imagens (WebP, lazy loading)
+- Preconnect para Firebase e Gemini APIs
+- Critical CSS inline
+- Fontes com swap
+- Reduzir JavaScript não crítico
+
+### 7.3 Otimização de Listas
+- `VirtualList.tsx` já implementado e aplicado em TasksView, AIChatView, ShoppingView
+- Verificar se está sendo usado em GoalsView e HabitsView
+- Adicionar infinite scroll nas listas de chat
+- Paginação no Firestore (limit + cursor)
+
+---
+
+## 8. SEGURANÇA
+
+### 8.1 Firestore Rules
+**Arquivo:** `firestore.rules`
+- Regras já definidas no documento `05_FIREBASE.md`
+- **Nunca foram aplicadas no Firebase Console**
+- O que fazer: Aplicar as regras com validação por família
+- Verificar se as regras bloqueiam acesso não autorizado
+
+### 8.2 Zod Validation
+**Arquivo:** `server/middleware/validate.ts`
+- **Atual:** Validação manual (verifica se campo existe)
+- **Melhoria:** Usar Zod para schema validation
+- Adicionar schemas para cada endpoint
+- Mensagens de erro em português
+
+### 8.3 Secrets e Env Vars
+**Verificar:**
+- `VITE_FIREBASE_API_KEY` hardcoded no `vercel.json` e em `src/services/firebase.ts`
+- Ideal: Mover para secrets do Vercel, não deixar inline
+- `VITE_GEMINI_API_KEY` no `vercel.json` — mover para secret
+- `GEMINI_API_KEY` no servidor — já via env var ✅
+
+---
+
+## 9. TESTES
+
+### 9.1 Expandir Cobertura
+**Atual:** 121 testes (7 suites)
+**Meta:** 200+ testes, 75% cobertura
+
+**O que adicionar:**
+- Testes de componente (Testing Library + Vitest)
+  - TaskCard (renderiza, clique concluir, prioridade colorida)
+  - Button (4 variantes, disabled, clique)
+  - Modal (abre, fecha, focus trap)
+  - VirtualList (renderiza itens visíveis, scroll)
+- Testes de hook
+  - useApi (request, error, loading)
+  - useRealtime (conecta, desconecta, recebe evento)
+- Testes de store
+  - useFamilyStore (fetchState, updateState)
+  - useAuthStore (login, logout, token)
+
+### 9.2 Testes E2E (Playwright)
+**Criar do zero:**
+```typescript
+// tests/e2e/auth.spec.ts
+test("login com email", async () => { ... })
+test("criar tarefa", async () => { ... })
+test("marcar hábito", async () => { ... })
+test("chat com IA", async () => { ... })
+test("ver leaderboard", async () => { ... })
+```
+
+### 9.3 Testes de Carga (k6)
+**Arquivo:** `tests/load.test.js` — Já existe mas nunca executado
+- Rodar contra staging: `k6 run tests/load.test.js`
+- Validar p95 < 500ms
+
+---
+
+## 10. REGRAS PARA O LOVABLE
+
+### Imperativo — NÃO QUEBRAR
+- ❌ Não remover testes existentes
+- ❌ Não mudar a estrutura de exportação do Vercel (`api/index.ts` export default app)
+- ❌ Não remover `includeFiles: server/**` do vercel.json
+- ❌ Não mudar a assinatura dos endpoints da API (frontend depende deles)
+- ❌ Não remover tipos existentes em `src/types.ts`
+- ❌ Não mudar o nome das stores ou seus métodos públicos
+- ❌ Não adicionar dependências pesadas sem verificar bundle size
+
+### Style Guide
+- **TypeScript strict mode** (já configurado)
+- **Tailwind v4** para estilização (usar classes, não CSS modules)
+- **Lucide React** para ícones
+- **Motion** para animações (não adicionar framer-motion separado)
+- **Portugês brasileiro** em toda UI e mensagens
+- **Async/await** para operações assíncronas (não .then/.catch)
+- **Zustand** para estado global (não Redux, não Context API)
+- **Vitest** para testes (não Jest, não Mocha)
+
+### Commits
+Usar conventional commits:
+```
+feat: adiciona onboarding flow
+fix: corrige validação de email no registro
+refactor: extrai lógica de cache para serviço separado
+perf: reduz bundle size com dynamic imports
+a11y: adiciona ARIA labels nos botões
+pwa: implementa service worker com cache
+```
+
+---
+
+## 11. ORDEM DE IMPLEMENTAÇÃO RECOMENDADA
+
+### Fase 1 — Fundação (dias 1-3)
+1. ✅ Rodar Firestore migration
+2. ✅ Configurar FCM + service account
+3. ✅ Adicionar Zod validation
+4. ✅ Aplicar Firestore rules
+
+### Fase 2 — PWA (dias 4-5)
+5. Implementar service worker completo
+6. Cache estratégia stale-while-revalidate
+7. Install prompt
+8. Background sync
+9. Manifest.json otimizado
+
+### Fase 3 — UX (dias 6-8)
+10. Onboarding flow
+11. Animações (motion)
+12. A11y
+13. Dark/Light mode
+14. Loading skeletons
+
+### Fase 4 — Features (dias 9-12)
+15. Comandos de voz
+16. Gamificação avançada (mais badges, confetti)
+17. AI Memory com RAG
+18. Google Calendar sync (básico)
+
+### Fase 5 — Performance (dias 13-14)
+19. Analisar e reduzir bundle
+20. Otimizar Core Web Vitals
+21. Adicionar lazy loading de imagens
+22. Lighthouse score > 90
+
+### Fase 6 — Testes (dias 15-17)
+23. Testes de componente (Testing Library)
+24. Testes E2E (Playwright)
+25. Testes de carga (k6)
+26. CI/CD atualizado com deploy real
+
+---
+
+## 12. ARQUIVOS DE REFERÊNCIA
+
+Consulte estes arquivos para entender o código existente antes de modificar:
+
+### Documentação (docs/)
+- `docs/00_PROJECT_VISION.md` — Visão do produto
+- `docs/01_PRODUCT_IDENTITY.md` — Identidade, tom de voz, cores
+- `docs/02_UPGRADE_PLAN.md` — Plano de evolução (v2.0 a v4.0)
+- `docs/03_IMPLEMENTATION_PLAN.md` — Sprints detalhadas
+- `docs/04_ARCHITECTURE.md` — Arquitetura do sistema
+- `docs/05_FIREBASE.md` — Firebase + Firestore model
+- `docs/06_DATABASE_MODEL.md` — Modelo de dados
+- `docs/07_DESIGN_SYSTEM.md` — Design System
+- `docs/14_SECURITY.md` — Segurança
+- `docs/15_PERFORMANCE.md` — Performance
+- `docs/16_TEST_PLAN.md` — Plano de testes
+- `docs/18_ROADMAP.md` — Roadmap de produto
+
+### Código Fonte
+- `api/index.ts` — Entrypoint Vercel
+- `server/app.ts` — Express app
+- `server/services/state.service.ts` — Estado central
+- `server/services/firestore.service.ts` — Firestore collections CRUD
+- `server/services/ai-tools.service.ts` — AI tools
+- `server/services/ai-memory.service.ts` — AI memory
+- `server/services/ai-modes.service.ts` — AI modes
+- `server/services/gamification.service.ts` — Gamificação
+- `src/types.ts` — Todos os tipos
+- `src/stores/*.ts` — Zustand stores
+- `src/hooks/*.ts` — Custom hooks
+- `vercel.json` — Configuração de deploy
+- `perf-budget.json` — Performance budget
