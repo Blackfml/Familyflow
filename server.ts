@@ -5,11 +5,14 @@ import dotenv from "dotenv";
 dotenv.config();
 import app from "./server/app";
 import { env } from "./server/config/env";
+import { ensureInit } from "./server/services/init";
 import { setupRealtimeServer } from "./server/services/realtime.service";
 
 const PORT = env.PORT;
 
 async function startServer() {
+  await ensureInit();
+
   const httpServer = http.createServer(app);
   setupRealtimeServer(httpServer);
 
