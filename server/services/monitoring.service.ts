@@ -53,14 +53,14 @@ export const monitoringService = {
     const percentage = totalMem > 0 ? Math.round((usedMem / totalMem) * 100) : 0;
 
     const apiOk = true;
-    const memoryOk = percentage < 90;
     const geminiOk = !!process.env.GEMINI_API_KEY;
+    const memoryOk = percentage < 90;
 
     let status: "healthy" | "degraded" | "unhealthy" = "healthy";
-    if (!geminiOk || percentage > 80) {
+    if (percentage > 80) {
       status = "degraded";
     }
-    if (percentage > 90) {
+    if (percentage > 95) {
       status = "unhealthy";
     }
 
