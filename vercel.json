@@ -5,13 +5,10 @@
   "installCommand": "npm ci",
   "functions": {
     "api/index.ts": {
-      "memory": 512,
-      "maxDuration": 30
+      "includeFiles": "server/**"
     }
   },
   "rewrites": [
-    { "source": "/health", "destination": "/api" },
-    { "source": "/api/(.*)", "destination": "/api" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "env": {

@@ -6,6 +6,7 @@ import { errorHandler } from "./middleware/errorHandler";
 import { rateLimiter } from "./middleware/rateLimiter";
 import routes from "./routes";
 import { setupAIEndpoints } from "./ai";
+import { ensureInit } from "./services/init";
 
 const app = express();
 
@@ -20,6 +21,11 @@ app.use(cors({
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use(rateLimiter(200, 60000));
+
+app.use(async (req, res, next) => {
+  await ensureInit();
+  next();
+});
 
 app.get("/health", (req, res) => res.json({ status: "healthy", uptime: process.uptime() }));
 
