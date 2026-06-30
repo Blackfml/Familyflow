@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isFamilyMember(familyId) {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid));
+    }
+
+    function isFamilyOwner(familyId) {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/families/$(familyId)).data.ownerId == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update, delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    match /families/{familyId} {
+      allow read: if isFamilyMember(familyId);
+      allow create: if isAuthenticated();
+      allow update, delete: if isFamilyOwner(familyId);
+
+      match /members/{userId} {
+        allow read: if isFamilyMember(familyId);
+        allow write: if isFamilyOwner(familyId);
+      }
+
+      match /tasks/{taskId} {
+        allow read: if isFamilyMember(familyId);
+        allow create: if isFamilyMember(familyId)
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.title.size() < 200;
+        allow update: if isFamilyMember(familyId);
+        allow delete: if isFamilyMember(familyId);
+      }
+
+      match /goals/{goalId} {
+        allow read, write: if isFamilyMember(familyId);
+      }
+
+      match /habits/{habitId} {
+        allow read, write: if isFamilyMember(familyId);
+        match /history/{date} {
+          allow read, write: if isFamilyMember(familyId);
+        }
+      }
+
+      match /shopping/{itemId} {
+        allow read, write: if isFamilyMember(familyId);
+      }
+
+      match /events/{eventId} {
+        allow read, write: if isFamilyMember(familyId);
+      }
+
+      match /chat/{messageId} {
+        allow read, create: if isFamilyMember(familyId);
+        allow delete: if isFamilyMember(familyId)
+          && resource.data.senderId == request.auth.uid;
+      }
+
+      match /notifications/{notificationId} {
+        allow read, write: if isFamilyMember(familyId);
+      }
+
+      match /history/{logId} {
+        allow read: if isFamilyMember(familyId);
+        allow create: if isFamilyMember(familyId);
+        allow update, delete: if false;
+      }
+    }
+  }
+}

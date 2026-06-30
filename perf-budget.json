@@ -1,0 +1,9 @@
+{
+  "budgets": [
+    { "resourceType": "script", "budget": 300 },
+    { "resourceType": "total", "budget": 500 },
+    { "resourceType": "first-meaningful-paint", "budget": 3000 },
+    { "resourceType": "time-to-interactive", "budget": 5000 },
+    { "resourceType": "lcp", "budget": 2500 }
+  ]
+}
